@@ -1,0 +1,113 @@
+---
+title: "BCB 520: Assignment II"
+author: "Justice Kessie"
+format: pdf
+
+editor: visual
+---
+
+## Research Descriptions
+
+My research focuses on a preventive strategy utilizing transmissible vaccines to mitigate the risk of Lassa virus spillover from its animal reservoir into the human population. To provide context, I define two key elements: First, transmissible vaccines represent a novel design strategy where the vaccine spreads from one individual to others through direct or close contact. Second, Lassa virus is a zoonotic pathogen that causes severe disease in humans but primarily resides in *Mastomys natalensis*, a rodent species prevalent in West Africa. The disease is endemic in this region, and all reported human cases have resulted from spillover events from the animal reservoir, as human-to-human transmission is rare or negligible.
+
+Because transmissible vaccines are engineered by inserting the antigen of a pathogen into a weakened or attenuated viral vector, making the vaccine capable of spreading within a host population, an intriguing dynamic is up for us to investigate: **the coexistence and competition between two viral entities** within the same host—the pathogen (e.g., Lassa virus) and the vaccine virus. Understanding how these two viral populations interact, compete, and potentially coexist is critical for optimizing the design and deployment of transmissible vaccines. My research focuses on unraveling the mechanisms that govern such coexistence, shedding light on the broader principles of viral competition and persistence within a host.
+
+## Data Description
+
+The data for this study is provided by our collaborators, who perform controlled murine experiments in a laboratory setting. In these experiments, *Mastomys natalensis* are inoculated with either cytomegalovirus (CMV) alone or CMV combined with an antigen (representing the vaccine). The mice are monitored at four-day intervals, during which shedding samples are collected and analyzed using PCR. This process yields quantitative data on viral replication and the abundance of both viral strains within each mouse over time.
+
+```{r}
+
+dat <- read.csv("C:/Users/jakes/OneDrive - University of Idaho/Documents/Foundationsa of Data Visualization/Assignment II/Data/L vWTvM78lNP.csv")
+
+head(dat)
+
+library(dplyr)
+summary_data <- dat %>%
+  select(-Days.PI) %>%  
+  select(where(~ all(!is.na(.)))) %>% 
+  group_by(Animal) %>%
+  summarise(across(
+    where(is.numeric), 
+    list(mean = ~mean(.x, na.rm = TRUE), sd = ~sd(.x, na.rm = TRUE)),
+    .names = "{.col}_{.fn}"
+  ),
+  count = n(), 
+  .groups = "drop"
+)
+
+glimpse(summary_data)
+View(dat)
+```
+
+```{r}
+
+summary_data_DPI <- dat %>%
+  select(-Animal) %>%  
+  select(where(~ all(!is.na(.)))) %>% 
+  group_by(Days.PI) %>%
+  summarise(across(
+    where(is.numeric), 
+    list(mean = ~mean(.x, na.rm = TRUE), sd = ~sd(.x, na.rm = TRUE)),
+    .names = "{.col}_{.fn}"
+  ),
+  count = n(), 
+  .groups = "drop"
+)
+
+glimpse(summary_data_DPI)
+```
+
+```{r}
+
+# Plot with base R
+plot(log10(dat$qPCR.dNP.control.1..q78lNP.), dat$Days.PI, 
+     col = as.factor(dat$Animal), # Color by 'Animal'
+     pch = 16,                   # Use solid points
+     xlab = "qPCR.dNP.control.1..q78lNP.",  # Label for x-axis
+     ylab = "Days.PI",           # Label for y-axis
+     main = "Days.PI vs qPCR.dNP.control.1..q78lNP.",  # Plot title
+     lwd = 2)                    # Line width (works for line plots)
+
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r}
+# Ensure the column is numeric and remove non-numeric values if present
+dat$qPCR.dNP.control.1..q78lNP. <- as.numeric(dat$qPCR.dNP.control.1..q78lNP.)
+
+# Check if there are any NA values that might affect the log10 transformation
+if(any(is.na(dat$qPCR.dNP.control.1..q78lNP.))) {
+  # Handle NAs, either by removing or imputing them
+  dat <- dat[!is.na(dat$qPCR.dNP.control.1..q78lNP.), ]
+}
+
+# Now proceed with the plot using log10 transformation
+plot(log10(dat$qPCR.dNP.control.1..q78lNP.), dat$Days.PI, 
+     col = as.factor(dat$Animal), # Color by 'Animal'
+     pch = 16,                   # Use solid points
+     xlab = "log10(qPCR.dNP.control.1..q78lNP.)",  # Label for x-axis
+     ylab = "Days.PI",           # Label for y-axis
+     main = "Days.PI vs log10(qPCR.dNP.control.1..q78lNP.)",  # Plot title
+     lwd = 2)                    # Line width (works for line plots)
+
+```
+
+```{r}
+pushing_to_git <- function(comment,repository) {
+    system('git init')
+    system('add READ.md')
+    system(glue::glue("commit -M {comment}"))
+    system("git branch -m main")
+    system(glue::glue("git remote add origin {repository}"))
+    system("git push -u origin main")
+ }
+ 
+ pushing_to_git(comment = "first commit",repository = "https://github.com/justicekessie/BCB-520--Foundations-of-Data-Visualization.git")
+```
+
+```{r}
+p2 <- switch()
+```
+
