@@ -37,7 +37,7 @@ summary_data <- dat %>%
 )
 
 glimpse(summary_data)
-View(dat)
+#View(dat)
 ```
 
 ```{r}
@@ -104,7 +104,7 @@ pushing_to_git <- function(comment,repository) {
     system("git push -u origin main")
 }
 
-###checkig 
+
  
  pushing_to_git(comment = "first commit",repository = "https://github.com/justicekessie/BCB-520--Foundations-of-Data-Visualization.git")
 ```
