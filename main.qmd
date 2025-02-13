@@ -112,4 +112,3 @@ pushing_to_git <- function(comment,repository) {
 ```{r}
 p2 <- switch()
 ```
-
