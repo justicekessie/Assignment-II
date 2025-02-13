@@ -1,114 +1,90 @@
 ---
-title: "BCB 520: Assignment II"
-author: "Justice Kessie"
+title: "Assignment II"
 format: pdf
-
 editor: visual
+jupyter: python3
 ---
 
-## Research Descriptions
+\usepackage{mathpazo}
+## Description of Data
 
-My research focuses on a preventive strategy utilizing transmissible vaccines to mitigate the risk of Lassa virus spillover from its animal reservoir into the human population. To provide context, I define two key elements: First, transmissible vaccines represent a novel design strategy where the vaccine spreads from one individual to others through direct or close contact. Second, Lassa virus is a zoonotic pathogen that causes severe disease in humans but primarily resides in *Mastomys natalensis*, a rodent species prevalent in West Africa. The disease is endemic in this region, and all reported human cases have resulted from spillover events from the animal reservoir, as human-to-human transmission is rare or negligible.
+The covid_ts dataset tracks the daily counts of COVID-19 infections and deaths across U.S. states, broken down by different virus strains. It includes several key columns: the date, state, total infections, deaths, and daily case counts for each COVID-19 strain— *Original*, *Alpha*, *Delta*, and *Omicron*. The date column records the day of the entry, while the state column tells you which U.S. state the data pertains to. The total_infections column gives the overall count of COVID-19 cases, and deaths shows the number of lives lost to the virus. The strain-specific columns break down the daily cases for each variant: *Original*, *Alpha*, *Delta*, and *Omicron*.
 
-Because transmissible vaccines are engineered by inserting the antigen of a pathogen into a weakened or attenuated viral vector, making the vaccine capable of spreading within a host population, an intriguing dynamic is up for us to investigate: **the coexistence and competition between two viral entities** within the same host—the pathogen (e.g., Lassa virus) and the vaccine virus. Understanding how these two viral populations interact, compete, and potentially coexist is critical for optimizing the design and deployment of transmissible vaccines. My research focuses on unraveling the mechanisms that govern such coexistence, shedding light on the broader principles of viral competition and persistence within a host.
 
-## Data Description
+The dataset begins in early 2020, during the first wave of the pandemic, and continues through the various waves caused by the emergence of new strains. These variants, like Alpha, Delta, and Omicron, had different levels of contagiousness and impacts on public health, which is reflected in their infection and death rates. For instance, the Alpha variant, emerging in late 2020, was more easily spread than the original strain, while Delta, which appeared in 2021, caused a major global surge. Omicron, emerging toward the end of 2021, was highly transmissible but led to fewer severe cases compared to previous strains.
 
-The data for this study is provided by our collaborators, who perform controlled murine experiments in a laboratory setting. In these experiments, *Mastomys natalensis* are inoculated with either cytomegalovirus (CMV) alone or CMV combined with an antigen (representing the vaccine). The mice are monitored at four-day intervals, during which shedding samples are collected and analyzed using PCR. This process yields quantitative data on viral replication and the abundance of both viral strains within each mouse over time.
+By analyzing this dataset, we can track how each variant's dominance shifted over time and across regions. It provides insight into when and where each strain became the most prevalent, shedding light on regional variations in how COVID-19 spread. Additionally, the dataset allows us to explore how mortality rates changed with each variant. By comparing death counts for each strain, we can gain a better understanding of how the severity of the virus evolved.
+Overall, the dataset is a powerful tool for both public health policy makers and epidemiological researchers. It allows us to visualize how the virus spread geographically and how different variants impacted different regions at various times. For example, using pie charts, we can easily show the proportion of each strain in different states, offering a clear picture of how the pandemic unfolded across the U.S. over time.
+
 
 ```{r}
+# Required packages
+library(tidyverse)
+library(lubridate)
+library(maps)
+library(gganimate)
+library(gifski)
 
-dat <- read.csv("C:/Users/jakes/OneDrive - University of Idaho/Documents/Foundationsa of Data Visualization/Assignment II/Data/L vWTvM78lNP.csv")
-
-head(dat)
-
-library(dplyr)
-summary_data <- dat %>%
-  select(-Days.PI) %>%  
-  select(where(~ all(!is.na(.)))) %>% 
-  group_by(Animal) %>%
-  summarise(across(
-    where(is.numeric), 
-    list(mean = ~mean(.x, na.rm = TRUE), sd = ~sd(.x, na.rm = TRUE)),
-    .names = "{.col}_{.fn}"
-  ),
-  count = n(), 
-  .groups = "drop"
-)
-
-glimpse(summary_data)
-#View(dat)
 ```
 
-```{r}
+You can add options to executable code like this
 
-summary_data_DPI <- dat %>%
-  select(-Animal) %>%  
-  select(where(~ all(!is.na(.)))) %>% 
-  group_by(Days.PI) %>%
-  summarise(across(
-    where(is.numeric), 
-    list(mean = ~mean(.x, na.rm = TRUE), sd = ~sd(.x, na.rm = TRUE)),
-    .names = "{.col}_{.fn}"
-  ),
-  count = n(), 
-  .groups = "drop"
+```{r}
+#| echo: false
+#set.seed(123)
+
+# Simplified state coordinates data with proper region conversion
+states <- tibble(
+  state = state.name,
+  longitude = state.center$x,
+  latitude = state.center$y,
+  region = as.character(state.region)
 )
 
-glimpse(summary_data_DPI)
-```
+# Time parameters
+start_date <- as.Date("2020-01-01")
+end_date <- as.Date("2022-12-31")
+dates <- seq(start_date, end_date, by = "day")
 
-```{r}
+# Strain configuration
+strains <- c("Original", "Alpha", "Delta", "Omicron")
+strain_emergence <- list(
+  Original = as.Date("2020-01-01"),
+  Alpha = as.Date("2020-09-01"),
+  Delta = as.Date("2021-03-01"),
+  Omicron = as.Date("2021-11-01")
+)
 
-# Plot with base R
-plot(log10(dat$qPCR.dNP.control.1..q78lNP.), dat$Days.PI, 
-     col = as.factor(dat$Animal), # Color by 'Animal'
-     pch = 16,                   # Use solid points
-     xlab = "qPCR.dNP.control.1..q78lNP.",  # Label for x-axis
-     ylab = "Days.PI",           # Label for y-axis
-     main = "Days.PI vs qPCR.dNP.control.1..q78lNP.",  # Plot title
-     lwd = 2)                    # Line width (works for line plots)
-
+calculate_strain_probs <- function(date, region) {
+  date <- as.Date(date)
+  region <- as.character(region)
+  
+  region_modifier <- case_when(
+    region == "Northeast" ~ 1.2,
+    region == "South" ~ 1.0,
+    region == "North Central" ~ 0.9,
+    region == "West" ~ 1.1,
+    TRUE ~ 1.0
+  )
+  
+  get_strain_prob <- function(strain_date, fitness) {
+    strain_date <- as.Date(strain_date)
+    days_since_emergence <- as.numeric(difftime(date, strain_date, units = "days"))
+    if (days_since_emergence < 0) return(0)
+    1 / (1 + exp(-fitness * region_modifier * (days_since_emergence/100 - 3)))
+  }
+  
+  probs <- c(
+    Original = get_strain_prob(strain_emergence$Original, 0.8),
+    Alpha = get_strain_prob(strain_emergence$Alpha, 1.0),
+    Delta = get_strain_prob(strain_emergence$Delta, 1.2),
+    Omicron = get_strain_prob(strain_emergence$Omicron, 1.5)
+  )
+  
+  probs <- pmax(0, probs + rnorm(length(probs), 0, 0.02))
+  if (sum(probs) == 0) probs <- c(1, 0, 0, 0)
+  probs / sum(probs)
+}
 ```
 
 The `echo: false` option disables the printing of code (only output is displayed).
-
-```{r}
-# Ensure the column is numeric and remove non-numeric values if present
-dat$qPCR.dNP.control.1..q78lNP. <- as.numeric(dat$qPCR.dNP.control.1..q78lNP.)
-
-# Check if there are any NA values that might affect the log10 transformation
-if(any(is.na(dat$qPCR.dNP.control.1..q78lNP.))) {
-  # Handle NAs, either by removing or imputing them
-  dat <- dat[!is.na(dat$qPCR.dNP.control.1..q78lNP.), ]
-}
-
-# Now proceed with the plot using log10 transformation
-plot(log10(dat$qPCR.dNP.control.1..q78lNP.), dat$Days.PI, 
-     col = as.factor(dat$Animal), # Color by 'Animal'
-     pch = 16,                   # Use solid points
-     xlab = "log10(qPCR.dNP.control.1..q78lNP.)",  # Label for x-axis
-     ylab = "Days.PI",           # Label for y-axis
-     main = "Days.PI vs log10(qPCR.dNP.control.1..q78lNP.)",  # Plot title
-     lwd = 2)                    # Line width (works for line plots)
-
-```
-
-```{r}
-pushing_to_git <- function(comment,repository) {
-    system('git init')
-    system('add READ.md')
-    system(glue::glue("commit -M {comment}"))
-    system("git branch -m main")
-    system(glue::glue("git remote add origin {repository}"))
-    system("git push -u origin main")
-}
-
-
- 
- pushing_to_git(comment = "first commit",repository = "https://github.com/justicekessie/BCB-520--Foundations-of-Data-Visualization.git")
-```
-
-```{r}
-p2 <- switch()
-```
