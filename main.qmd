@@ -29,7 +29,11 @@ library(gifski)
 
 You can add options to executable code like this
 
-```{r}
+```{r, include=FALSE}
+```
+
+
+```{r, include=FALSE}
 #| echo: false
 #set.seed(123)
 
@@ -87,4 +91,70 @@ calculate_strain_probs <- function(date, region) {
 }
 ```
 
-The `echo: false` option disables the printing of code (only output is displayed).
+```{r}
+# Generate data with proper strain distribution
+covid_ts <- tibble()
+
+for(s in states$state) {
+  state_region <- as.character(states$region[states$state == s])
+  
+  for(d in dates) {
+    d <- as.Date(d)
+    
+    day_of_year <- yday(d)
+    seasonal_factor <- 1 + 0.3 * sin(2 * pi * (day_of_year - 30)/365)
+    base_rate <- 100 * seasonal_factor
+    
+    # Calculate probabilities for each strain
+    probs <- calculate_strain_probs(d, state_region)
+    
+    # Generate total infections
+    total_infections <- rpois(1, lambda = base_rate)
+    
+    # Distribute infections across strains
+    if(total_infections > 0) {
+      strain_counts <- rmultinom(1, total_infections, probs)[,1]
+    } else {
+      strain_counts <- rep(0, length(strains))
+    }
+    names(strain_counts) <- strains
+    
+    # Calculate deaths for each strain separately
+    mortality_rates <- c(Original = 0.02, Alpha = 0.025, Delta = 0.035, Omicron = 0.01)
+    deaths <- sum(sapply(1:length(strains), function(i) {
+      rbinom(1, strain_counts[i], mortality_rates[strains[i]])
+    }))
+    
+    # Create daily record with proper strain distribution
+    daily_data <- tibble(
+      date = d,
+      state = s,
+      total_infections = total_infections,
+      deaths = deaths,
+      Original = strain_counts["Original"],
+      Alpha = strain_counts["Alpha"],
+      Delta = strain_counts["Delta"],
+      Omicron = strain_counts["Omicron"]
+    )
+    
+    covid_ts <- bind_rows(covid_ts, daily_data)
+  }
+  
+  cat("Processed state:", s, "\n")
+}
+
+# Verify that strains sum to total infections
+check_sums <- covid_ts %>%
+  mutate(
+    strain_sum = Original + Alpha + Delta + Omicron,
+    matches = strain_sum == total_infections
+  )
+
+# Print first few rows to verify data
+print(head(covid_ts))
+
+```
+
+```{r}
+
+```
